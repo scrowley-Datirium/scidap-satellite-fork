@@ -45,7 +45,8 @@
         "tmpToilDir": "/mnt/cache/TOIL_TMP_DIR",
         "envFilePath": "/path/to/toilEnvFile",
         "singularityTmpPath": "/mnt/cache/SINGULARITY_TMP_DIR",
-        "cwlSingularityPath": "/mnt/cache/SINGULARITY_TMP_DIR"
+        "cwlSingularityPath": "/mnt/cache/SINGULARITY_TMP_DIR",
+        "batchSystem": "single_machine"
     },
     "aria2cSettings": {
         "--console-log-level": "debug",
