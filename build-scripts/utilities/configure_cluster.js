@@ -69,6 +69,8 @@ function getClusterEnvVar(settings){
     CWL_SINGULARITY_DIR: settings.clusterApiSettings.cwlSingularityPath,
     NJS_CLIENT_PORT: settings.satelliteSettings.port,
     BATCH_SYSTEM_TOIL: settings.clusterApiSettings.batchSystem, 
+    NUM_CPUS: settings.clusterApiSettings.numCpus, 
+    MAX_MEM: settings.clusterApiSettings.maxMem, 
     // SATELLITE_ROOT: settings.satelliteSettings.systemRoot + "/"
   };
   return clusterEnvVar

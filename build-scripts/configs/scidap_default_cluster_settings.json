@@ -46,7 +46,9 @@
         "envFilePath": "/path/to/toilEnvFile",
         "singularityTmpPath": "/mnt/cache/SINGULARITY_TMP_DIR",
         "cwlSingularityPath": "/mnt/cache/SINGULARITY_TMP_DIR",
-        "batchSystem": "single_machine"
+        "batchSystem": "single_machine",
+        "numCpus": "8",
+        "maxMemory": "68719476736"
     },
     "aria2cSettings": {
         "--console-log-level": "debug",
