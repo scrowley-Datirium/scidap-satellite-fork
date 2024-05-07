@@ -12,7 +12,7 @@ ARIA2_VERSION=${6:-"1.36.0"}
 CLUSTERAPI_PYTHON_VERSION=${7:-"3.8.19"}
 # NJS_CLIENT_VERSION=${7:-"master"}                       # No local builds. Always pulled from BitBucket. All the changes should be pushed beforehand.
 SRA_TOOLKIT_VERSION=${8:-"2.11.1"}
-POSTGRESQL_VERSION=${9:-"10.18"}                              # see https://www.enterprisedb.com/download-postgresql-binaries for available versions
+# POSTGRESQL_VERSION=${9:-"10.18"}                              # see https://www.enterprisedb.com/download-postgresql-binaries for available versions
 # PYTHON_VERSION=${9:-"3.6.8"}
 
 # if [[ -z "${BITBUCKET_USER}" ]] || [[ -z "${BITBUCKET_PASS}" ]]; then
@@ -48,6 +48,5 @@ docker run --rm -it \
        ${ARIA2_VERSION} \
        ${CLUSTERAPI_PYTHON_VERSION} \
        ${SRA_TOOLKIT_VERSION} \
-       ${POSTGRESQL_VERSION} \
        ${CLUSTER_API_VERSION} \
        /njs-repo

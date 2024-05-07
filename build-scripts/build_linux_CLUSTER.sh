@@ -67,11 +67,11 @@ ARIA2_VERSION=$3
 CLUSTERAPI_PYTHON_VERSION=$4
 # NJS_CLIENT_VERSION=$6
 SRA_TOOLKIT_VERSION=$5
-POSTGRESQL_VERSION=$6
+# POSTGRESQL_VERSION=$6
 # PYTHON_VERSION=$6
 # CLUSTER_REPO_PATH=$6
-CLUSTER_API_VERSION=$7
-NJS_REPO_PATH=$8
+CLUSTER_API_VERSION=$6
+NJS_REPO_PATH=$7
 
 
 # echo "SATELLITE_VERSION_LABEL: ${SATELLITE_VERSION_LABEL}"
@@ -153,19 +153,19 @@ cp -L sratoolkit.${SRA_TOOLKIT_VERSION}-${SRA_TOOLKIT_SUFFIX}/bin/fastq-dump-ori
 cp -L sratoolkit.${SRA_TOOLKIT_VERSION}-${SRA_TOOLKIT_SUFFIX}/bin/vdb-config ${SATDIR}/bin/
 cp -L sratoolkit.${SRA_TOOLKIT_VERSION}-${SRA_TOOLKIT_SUFFIX}/bin/vdb-config.${SRA_TOOLKIT_VERSION} ${SATDIR}/bin/
 
-echo "Downloading PostgreSQL"
-POSTGRESQL_URL="https://get.enterprisedb.com/postgresql/postgresql-${POSTGRESQL_VERSION}-1-linux-x64-binaries.tar.gz"
-download_and_extract $POSTGRESQL_URL postgresql-${POSTGRESQL_VERSION}-1-linux-x64-binaries.tar.gz pgsql
-echo "Copying PostgreSQL binaries, libs and shares"
-cp -L pgsql/bin/initdb ${SATDIR}/bin/
-cp -L pgsql/bin/createdb ${SATDIR}/bin/
-cp -L pgsql/bin/pg_ctl ${SATDIR}/bin/
-cp -L pgsql/bin/pg_isready ${SATDIR}/bin/
-cp -L pgsql/bin/postgres ${SATDIR}/bin/
-cp -L pgsql/bin/psql ${SATDIR}/bin/
-cp -L pgsql/bin/psql.bin ${SATDIR}/bin/
-cp -r pgsql/lib ${SATDIR}/
-cp -r pgsql/share ${SATDIR}/
+# echo "Downloading PostgreSQL"
+# POSTGRESQL_URL="https://get.enterprisedb.com/postgresql/postgresql-${POSTGRESQL_VERSION}-1-linux-x64-binaries.tar.gz"
+# download_and_extract $POSTGRESQL_URL postgresql-${POSTGRESQL_VERSION}-1-linux-x64-binaries.tar.gz pgsql
+# echo "Copying PostgreSQL binaries, libs and shares"
+# cp -L pgsql/bin/initdb ${SATDIR}/bin/
+# cp -L pgsql/bin/createdb ${SATDIR}/bin/
+# cp -L pgsql/bin/pg_ctl ${SATDIR}/bin/
+# cp -L pgsql/bin/pg_isready ${SATDIR}/bin/
+# cp -L pgsql/bin/postgres ${SATDIR}/bin/
+# cp -L pgsql/bin/psql ${SATDIR}/bin/
+# cp -L pgsql/bin/psql.bin ${SATDIR}/bin/
+# cp -r pgsql/lib ${SATDIR}/
+# cp -r pgsql/share ${SATDIR}/
 
 
 
