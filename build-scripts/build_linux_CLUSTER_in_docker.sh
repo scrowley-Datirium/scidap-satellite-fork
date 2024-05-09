@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-# CLUSTER_REPO_PATH=${1:-"/Users/scrowley/Desktop/REPOS/sat-cluster-api"}
+# TODO: include params for linking git ssh creds with container for pulling satellite from github
+# https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials
+
+
 CLUSTER_API_VERSION=${1:="0.1.3"}
 NJS_REPO_PATH=${2:-"/Users/scrowley/Desktop/REPOS/scidap-satellite-interactions/scidap-satellite"}
 

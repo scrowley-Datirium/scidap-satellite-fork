@@ -71,7 +71,7 @@ function getClusterEnvVar(settings){
     BATCH_SYSTEM_TOIL: settings.clusterApiSettings.batchSystem, 
     NUM_CPUS: settings.clusterApiSettings.numCpus, 
     MAX_MEM: settings.clusterApiSettings.maxMem, 
-    // SATELLITE_ROOT: settings.satelliteSettings.systemRoot + "/"
+    SATELLITE_ROOT: settings.satelliteSettings.systemRoot + "/"
   };
   return clusterEnvVar
 }
