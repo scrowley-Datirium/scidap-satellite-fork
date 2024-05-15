@@ -20,16 +20,16 @@ CWL_SINGULARITY_CACHE=${11:-"${SINGULARITY_TMP_DIR}"}
 SYSTEM_ROOT=${12:-"/home/scidap/scidap"}
 CPU=${13:-"8"}
 MEMORY=${14:-"68719476736"}
-
+TOTAL_STEPS=${15:-"2"}
+SCRIPT_DIR=${16:-"/home/scidap/satellite/satellite/bin"}
 
 JOBSTORE="${TMPDIR}/${DAG_ID}_${RUN_ID}/jobstore"
 LOGS="${TMPDIR}/${DAG_ID}_${RUN_ID}/logs"
 
-
+    
 # # start progress script in background and kill with this
-# ./toil_progress.sh
-# pid=$!
-
+bash $SCRIPT_DIR/toil_progress.sh $TMPDIR $DAG_ID $RUN_ID $TOTAL_STEPS $NJS_CLIENT_PORT &
+progressPID=$!
 
 cleanup()
 {
@@ -37,6 +37,7 @@ cleanup()
   echo "Sending workflow execution error"
   PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"failed\", \"progress\": 0, \"error\": \"failed\", \"statistics\": \"\", \"logs\": \"\"}}"
   echo $PAYLOAD
+  kill $progressPID
   curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
   exit ${EXIT_CODE}
 }
@@ -77,37 +78,16 @@ runSingleMode()
     --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
     toil stats ${JOBSTORE} > ${OUTDIR}/stats.txt
     cat ${OUTDIR}/results_full.json | jq 'walk(if type == "object" then with_entries(select(.key | test("listing") | not)) else . end)' > ${OUTDIR}/results.json
-    #cat ${OUTDIR}/results_full.json > ${OUTDIR}/results.json
-    # EOL
-
-    # jq 'walk(if type == "object" then with_entries(select(.key | test("listing") | not)) else . end)'
-
-
-    # bwait -w "started(${DAG_ID}_${RUN_ID})"
-    # echo "Sending workflow execution progress"
-    # PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"Sent to Cluster\", \"progress\": 8, \"error\": \"\", \"statistics\": \"\", \"logs\": \"\"}}"
-    # echo $PAYLOAD
-    # curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
-
-    # bwait -w "done(${DAG_ID}_${RUN_ID})"      # won't be caught by trap if job finished successfully
-
+    
     RESULTS=`cat ${OUTDIR}/results.json`
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
     echo $PAYLOAD > "${OUTDIR}/payload.json"
-    echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+    echo "Killing progress process and sending workflow execution results from ${OUTDIR}/payload.json"
+    kill $progressPID
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
     echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
-    # bsub -J "${DAG_ID}_${RUN_ID}_cleanup" \
-    #      -M 16000 \
-    #      -W 8:00 \
-    #      -n 2 \
-    #      -R "rusage[mem=16000] span[hosts=1]" \
-    #      -o "${OUTDIR}/cleanup_stdout.txt" \
-    #      -e "${OUTDIR}/cleanup_stderr.txt" << EOL
     rm -rf "${TMPDIR}/${DAG_ID}_${RUN_ID}"
-    # EOL
-    # bwait -w "ended(${DAG_ID}_${RUN_ID}_cleanup)"
 }
 
 runClusterMode()
@@ -162,7 +142,8 @@ bwait -w "done(${DAG_ID}_${RUN_ID})"      # won't be caught by trap if job finis
 RESULTS=`cat ${OUTDIR}/results.json`
 PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
 echo $PAYLOAD > "${OUTDIR}/payload.json"
-echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+echo "Killing progress process and sending workflow execution results from ${OUTDIR}/payload.json"
+kill $progressPID
 curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
 echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"

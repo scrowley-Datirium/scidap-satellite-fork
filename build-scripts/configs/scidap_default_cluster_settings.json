@@ -43,7 +43,7 @@
         "scriptDir": "/home/scidap/satellite/satellite/bin",
         "outputDir": "/home/scidap/scidap/projects",
         "tmpToilDir": "/mnt/cache/TOIL_TMP_DIR",
-        "envFilePath": "/path/to/toilEnvFile",
+        "envFilePath": "/home/scidap/venv/toil/bin/activate",
         "singularityTmpPath": "/mnt/cache/SINGULARITY_TMP_DIR",
         "cwlSingularityPath": "/mnt/cache/SINGULARITY_TMP_DIR",
         "batchSystem": "single_machine",
