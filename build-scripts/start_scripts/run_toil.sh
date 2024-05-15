@@ -17,13 +17,18 @@ BATCH_SYSTEM=$8
 NJS_CLIENT_PORT=${9:-"3069"}
 SINGULARITY_TMP_DIR=$10
 CWL_SINGULARITY_CACHE=${11:-"${SINGULARITY_TMP_DIR}"}
-SYSTEM_ROOT=${12:-"/home/scidap"}
+SYSTEM_ROOT=${12:-"/home/scidap/scidap"}
 CPU=${13:-"8"}
 MEMORY=${14:-"68719476736"}
 
 
 JOBSTORE="${TMPDIR}/${DAG_ID}_${RUN_ID}/jobstore"
 LOGS="${TMPDIR}/${DAG_ID}_${RUN_ID}/logs"
+
+
+# # start progress script in background and kill with this
+# ./toil_progress.sh
+# pid=$!
 
 
 cleanup()
@@ -37,18 +42,13 @@ cleanup()
 }
 trap cleanup SIGINT SIGTERM SIGKILL ERR
 
-if [[ "$BATCH_SYSTEM" == "lsf"]]; then
-     runClusterMode()
-elif [[ "$BATCH_SYSTEM" == "single_machine"]]; then
-     runSingleMode()
-else 
-     echo "BATCH SYSTEM not recognized. job not run"
-     cleanup()
-fi
+# remove "format" field from files in cwl
+sed -i '/\"format\": \[/,/]/ d; /^$/d' $WORKFLOW
+sed -i '/"format": /d' $WORKFLOW
 
 
-
-runSingleMode(){
+runSingleMode()
+{
     source $TOIL_ENV_FILE
     mkdir -p ${OUTDIR} ${LOGS}
     rm -rf ${JOBSTORE}
@@ -110,12 +110,11 @@ runSingleMode(){
     # bwait -w "ended(${DAG_ID}_${RUN_ID}_cleanup)"
 }
 
-runClusterMode(){
-sed -i '/\"format\": \[/,/]/ d; /^$/d' $WORKFLOW
-sed -i '/"format": /d' $WORKFLOW
+runClusterMode()
+{
 replacementStr="\"location\": \"file://$SYSTEM_ROOT"
 # echo $replacementStr
-gsed -i "s|\"location\": \"file:///scidap/|$replacementStr|g" $JOB
+sed -i "s|\"location\": \"file:///scidap/|$replacementStr|g" $JOB
 
 
 bsub -J "${DAG_ID}_${RUN_ID}" \
@@ -179,3 +178,14 @@ EOL
 bwait -w "ended(${DAG_ID}_${RUN_ID}_cleanup)"
 }
 
+
+if [ "$BATCH_SYSTEM" = "lsf" ]
+then
+    runClusterMode
+elif [ "$BATCH_SYSTEM" = "single_machine" ]
+then
+    runSingleMode
+else 
+    echo "BATCH SYSTEM not recognized. job not run"
+    cleanup
+fi

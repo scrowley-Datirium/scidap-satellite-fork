@@ -9,7 +9,7 @@
         "rcServer": "api-sync.scidap.com:8080",
         "port": 3069,
         "airflowAPIPort": 8081,
-        "systemRoot": "./scidap",
+        "systemRoot": "/home/scidap/scidap",
         "aria2cPort": 6800,
         "pm2Port": 9615,
         "enableSSL": true,
