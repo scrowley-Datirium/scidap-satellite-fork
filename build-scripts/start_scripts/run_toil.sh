@@ -81,6 +81,7 @@ runSingleMode()
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
     echo $PAYLOAD > "${OUTDIR}/payload.json"
     echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+    kill $progressPID
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
     echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
@@ -140,6 +141,7 @@ RESULTS=`cat ${OUTDIR}/results.json`
 PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
 echo $PAYLOAD > "${OUTDIR}/payload.json"
 echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+kill $progressPID
 curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
 echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
