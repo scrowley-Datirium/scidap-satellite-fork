@@ -177,6 +177,9 @@ cp -L ../start_scripts/start_apiserver.sh ${SATDIR}/bin/
 cp -L ../start_scripts/start_webserver.sh ${SATDIR}/bin/
 cp -L ../start_scripts/start_cluster_api.sh ${SATDIR}/bin/
 cp -L ../start_scripts/run_toil.sh ${SATDIR}/bin/
+cp -L ../start_scripts/toil_progress.sh ${SATDIR}/bin/
+# copy all jq versions. requires correct one based on architecture to be renamed to "jq"
+cp -L ../start_scripts/jq-linux-* ${SATDIR}/bin/
 
 echo "Moving installed programs to the bundle folder, copying configuration files and utilities. Compressing results."
 cd ${WORKDIR}
