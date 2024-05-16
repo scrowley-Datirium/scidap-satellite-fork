@@ -75,7 +75,7 @@ runSingleMode()
     --writeLogs ${LOGS} \
     --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
     toil stats ${JOBSTORE} > ${OUTDIR}/stats.txt
-    cat ${OUTDIR}/results_full.json | jq 'walk(if type == "object" then with_entries(select(.key | test("listing") | not)) else . end)' > ${OUTDIR}/results.json
+    cat ${OUTDIR}/results_full.json | ${SCRIPT_DIR}/jq 'walk(if type == "object" then with_entries(select(.key | test("listing") | not)) else . end)' > ${OUTDIR}/results.json
     
     RESULTS=`cat ${OUTDIR}/results.json`
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"

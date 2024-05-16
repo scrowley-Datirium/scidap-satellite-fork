@@ -39,8 +39,8 @@ while true; do
         # echo "max steps: $TOTAL_STEPS"
 
         # stop reporting if sample close to finished
-        if [ "$stepNum" -lt $(expr "$TOTAL_STEPS" - 1) ]
-        then 
+        # if [ "$stepNum" -lt $(expr "$TOTAL_STEPS" - 1) ]
+        # then 
             percentage=$( expr 100 '*' "$stepNum" / "$TOTAL_STEPS" )
             if [ "$percentage" -gt "$lastProgress" ]
             then 
@@ -54,10 +54,10 @@ while true; do
 
             # manually add "steps" to test new progress steps
             # touch "$SEARCH_DIR/$percentage.cwl"
-        else
-            echo "sample is 1 step from finished, report nothing and end progress watching"
-            break
-        fi
+        # else
+        #     echo "sample is 1 step from finished, report nothing and end progress watching"
+        #     break
+        # fi
     } || {
         echo "failed to check searchdir somehow. retry after delay"
     }
