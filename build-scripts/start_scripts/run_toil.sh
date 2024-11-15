@@ -15,19 +15,33 @@ BATCH_SYSTEM=$8
 NJS_CLIENT_PORT=${9:-"3069"}
 SINGULARITY_TMP_DIR=$10
 CWL_SINGULARITY_CACHE=${11:-"${SINGULARITY_TMP_DIR}"}
-SYSTEM_ROOT=${12:-"/home/scidap/scidap"}
-CPU=${13:-"8"}
+SYSTEM_ROOT=${12:-"/home/scidap_satellite/scidap"}
+CPU=${13:-"6"}
 MEMORY=${14:-"68719476736"}
 TOTAL_STEPS=${15:-"2"}
-SCRIPT_DIR=${16:-"/home/scidap/satellite/satellite/bin"}
+SCRIPT_DIR=${16:-"/home/scidap_satellite/satellite/satellite/bin"}
 
 JOBSTORE="${TMPDIR}/${DAG_ID}_${RUN_ID}/jobstore"
 LOGS="${TMPDIR}/${DAG_ID}_${RUN_ID}/logs"
 
+WORKFLOW_TABLE="$SCRIPT_DIR/workflow_req_table.csv"
 
+    
 # # start progress script in background and kill with this
 bash $SCRIPT_DIR/toil_progress.sh $TMPDIR $DAG_ID $RUN_ID $TOTAL_STEPS $NJS_CLIENT_PORT &
 progressPID=$!
+
+list_descendants ()
+{
+  local children=$(ps -o pid= --ppid "$1")
+
+  for pid in $children
+  do
+    list_descendants "$pid"
+  done
+
+  echo "$children"
+}
 
 cleanup()
 {
@@ -35,11 +49,12 @@ cleanup()
   echo "Sending workflow execution error"
   PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"failed\", \"progress\": 0, \"error\": \"failed\", \"statistics\": \"\", \"logs\": \"\"}}"
   echo $PAYLOAD
-#   kill $progressPID
   curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
   pkill -P $progressPID
+  #kill $(list_descendants $$)
   exit ${EXIT_CODE}
 }
+
 trap cleanup SIGINT SIGTERM SIGKILL ERR
 
 # remove "format" field from files in cwl
@@ -63,7 +78,6 @@ runSingleMode()
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
 
 
-
     toil-cwl-runner \
     --logDebug \
     --stats \
@@ -83,15 +97,148 @@ runSingleMode()
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
     echo $PAYLOAD > "${OUTDIR}/payload.json"
     echo "Sending workflow execution results from ${OUTDIR}/payload.json"
-    # kill $progressPID
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
     echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
-    rm -rf "${TMPDIR}/${DAG_ID}_${RUN_ID}"
+    rm -rf "${TMPDIR}"
     pkill -P $progressPID
 }
 
-runClusterMode()
+runClusterMode(){
+  trap cleanup SIGINT SIGTERM SIGKILL ERR
+  
+  replacementStr="\"location\": \"file://$SYSTEM_ROOT"
+  # echo $replacementStr
+  #sed -i "s|\"location\": \"file:///mnt/scidap-storage/PUBLIC_SATELLITE/|$replacementStr|g" $JOB
+  sed -i "s|$replacementStr|\"location\": \"file:///mnt/scidap-storage/|g" $JOB
+  
+  source $TOIL_ENV_FILE
+  mkdir -p ${OUTDIR} ${LOGS}
+  rm -rf ${JOBSTORE}
+  export TMPDIR="${TMPDIR}/${DAG_ID}_${RUN_ID}"
+  export SINGULARITY_TMPDIR=$SINGULARITY_TMP_DIR
+  export TOIL_LSF_ARGS="-W 48:00"
+
+  echo "Starting workflow execution"
+  PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"Sent to Cluster\", \"progress\": 8, \"error\": \"\", \"statistics\": \"\", \"logs\": \"\"}}"
+  echo $PAYLOAD
+  curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
+
+
+  ## TODO: cpu/mem
+
+  # get names of each workflow step
+  stepNames=$(jq '.steps | to_entries | .[].key' $WORKFLOW)
+  # strip " from stepnames
+  stepNames=$(echo $stepNames | sed -e 's/"//g') 
+  # get steps with resourceRequirements
+  stepsWithReqs=$(jq -r '.steps | to_entries | .[] | select( any(.value.run.requirements.[]; .class == "ResourceRequirement" )) | .key' $WORKFLOW)
+  # echo "stepNames: $stepNames"
+  # echo "stepsWithReqs: $stepsWithReqs"
+
+  # get number steps that dont have resourceReqs
+  stepsWithoutReqs=0
+  for f in $stepNames; 
+  do 
+      if [[ ${stepsWithReqs} != *"$f"* ]];then
+          stepsWithoutReqs=$((stepsWithoutReqs+1))
+      fi
+  done
+  # if stepsWithoutReqs == 0
+    # run without cpu/mem params
+  # else
+    # get label and set params based on low/med/high/NA reqs
+  if [ $stepsWithoutReqs \> 0 ];
+  then
+    echo "some steps dont have resReqs"
+
+    # WORKFLOW_TABLE="/Users/scrowley/Downloads/global_cwls_all_20241008.csv"
+
+    LABEL=$(jq -r '.label' $WORKFLOW)
+    echo "label: ${LABEL}"
+    # LABEL_LINE=$(sed -n '/$LABEL/p' $WORKFLOW)
+    # LABEL_LINE=$(grep -n "${LABEL}" $WORKFLOW)
+    LABEL_LINE=$(grep -n "$LABEL" $WORKFLOW_TABLE)
+    # awk -v line='0 8 * * * Me echo "start working please"' '$0 == line {print "this is the line number", NR, "from", FILENAME}' a
+    echo "label line: $LABEL_LINE"
+
+    ## comma separate and get last entry
+    commaSepLine=()
+    tmpIFS=$IFS
+    IFS=$IFS,
+    for f in $LABEL_LINE; do commaSepLine+=($f); done
+    IFS=$tmpIFS
+    # get last entry
+    JOB_PRIO=${commaSepLine[${#commaSepLine[@]} - 1]} #${commaSepLine[-1]}
+    # strip other chars
+    JOB_PRIO=$(echo $JOB_PRIO | sed -e 's/\r//g')
+
+    case "$JOB_PRIO" in
+      "high")
+        MEMORY=122070 # 128Gb  #61035 64Gb
+        CPU=12
+        ;;
+      "med")
+        MEMORY=30517 # 32Gb
+        CPU=4
+        ;;
+      "low")
+        MEMORY=3814 # 2Gb
+        CPU=1
+        ;;
+      *)
+        MEMORY=30517  # 32Gb
+        CPU=4
+        ;;
+    esac
+
+    echo "MEM: $MEMORY"
+    echo "CPU: $CPU"
+    echo "running toil with assigned cpu/mem"
+    toil-cwl-runner \
+      --logDebug \
+      --stats \
+      --bypass-file-store \
+      --batchSystem slurm \
+      --retryCount 0 \
+      --disableCaching \
+      --defaultMemory ${MEMORY} \
+      --defaultCores ${CPU} \
+      --jobStore "${JOBSTORE}" \
+      --writeLogs ${LOGS} \
+      --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
+
+  else
+      echo "let toil parse"
+      toil-cwl-runner \
+        --logDebug \
+        --stats \
+        --bypass-file-store \
+        --batchSystem slurm \
+        --retryCount 0 \
+        --disableCaching \
+        --jobStore "${JOBSTORE}" \
+        --writeLogs ${LOGS} \
+        --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
+  fi
+
+  
+  toil stats ${JOBSTORE} > ${OUTDIR}/stats.txt
+  cat ${OUTDIR}/results_full.json | ${SCRIPT_DIR}/jq 'walk(if type == "object" then with_entries(select(.key | test("listing") | not)) else . end)' > ${OUTDIR}/results.json
+  
+  RESULTS=`cat ${OUTDIR}/results.json`
+  PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
+  echo $PAYLOAD > "${OUTDIR}/payload.json"
+  echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+  curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
+
+  echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
+  rm -rf "${TMPDIR}"
+  pkill -P $progressPID
+
+}
+
+runLsfClusterMode()
 {
 trap cleanup SIGINT SIGTERM SIGKILL ERR
 replacementStr="\"location\": \"file://$SYSTEM_ROOT"
@@ -163,14 +310,16 @@ bwait -w "ended(${DAG_ID}_${RUN_ID}_cleanup)"
 pkill -P $progressPID
 }
 
-
-if [ "$BATCH_SYSTEM" = "lsf" ]
+if [ "$BATCH_SYSTEM" = "slurm" ]
 then
-    runClusterMode
+  runClusterMode
 elif [ "$BATCH_SYSTEM" = "single_machine" ]
 then
-    runSingleMode
+  runSingleMode
+elif [ "$BATCH_SYSTEM" = "lsf" ]
+then
+  runLsfClusterMode
 else 
-    echo "BATCH SYSTEM not recognized. job not run"
-    cleanup
+  echo "BATCH SYSTEM not recognized. job not run"
+  cleanup
 fi
