@@ -127,100 +127,75 @@ runClusterMode(){
 
   ## TODO: cpu/mem
 
-  # get names of each workflow step
-  stepNames=$(jq '.steps | to_entries | .[].key' $WORKFLOW)
-  # strip " from stepnames
-  stepNames=$(echo $stepNames | sed -e 's/"//g') 
-  # get steps with resourceRequirements
-  stepsWithReqs=$(jq -r '.steps | to_entries | .[] | select( any(.value.run.requirements.[]; .class == "ResourceRequirement" )) | .key' $WORKFLOW)
-  # echo "stepNames: $stepNames"
-  # echo "stepsWithReqs: $stepsWithReqs"
+  # LABEL=$(jq -r '.label' $WORKFLOW)
+  # echo "label: ${LABEL}"
+  # # LABEL_LINE=$(sed -n '/$LABEL/p' $WORKFLOW)
+  # # LABEL_LINE=$(grep -n "${LABEL}" $WORKFLOW)
+  # LABEL_LINE=$(grep -n "$LABEL" $WORKFLOW_TABLE)
+  # # awk -v line='0 8 * * * Me echo "start working please"' '$0 == line {print "this is the line number", NR, "from", FILENAME}' a
+  # echo "label line: $LABEL_LINE"
 
-  # get number steps that dont have resourceReqs
-  stepsWithoutReqs=0
-  for f in $stepNames; 
-  do 
-      if [[ ${stepsWithReqs} != *"$f"* ]];then
-          stepsWithoutReqs=$((stepsWithoutReqs+1))
-      fi
-  done
-  # if stepsWithoutReqs == 0
-    # run without cpu/mem params
+  # ## comma separate and get last entry
+  # commaSepLine=()
+  # tmpIFS=$IFS
+  # IFS=$IFS,
+  # for f in $LABEL_LINE; do commaSepLine+=($f); done
+  # IFS=$tmpIFS
+  # # get last entry
+  # JOB_PRIO=${commaSepLine[${#commaSepLine[@]} - 1]} #${commaSepLine[-1]}
+  # # strip other chars
+  # JOB_PRIO=$(echo $JOB_PRIO | sed -e 's/\r//g')
+
+  # case "$JOB_PRIO" in
+  #   "high")
+  #     MEMORY=122070 # 128Gb  #61035 64Gb
+  #     CPU=12
+  #     ;;
+  #   "med")
+  #     MEMORY=30517 # 32Gb
+  #     CPU=4
+  #     ;;
+  #   "low")
+  #     MEMORY=3814 # 2Gb
+  #     CPU=1
+  #     ;;
+  #   *)
+  #     MEMORY=30517  # 32Gb
+  #     CPU=4
+  #     ;;
+  # esac
+
+  MEMORY=30517  # 32Gb
+  CPU=4
+  echo "MEM: $MEMORY"
+  echo "CPU: $CPU"
+  echo "running toil with assigned cpu/mem"
+  toil-cwl-runner \
+    --logDebug \
+    --stats \
+    --bypass-file-store \
+    --batchSystem slurm \
+    --retryCount 0 \
+    --disableCaching \
+    --defaultMemory "${MEMORY}Mi" \
+    --defaultCores "${CPU}.0" \
+    --jobStore "${JOBSTORE}" \
+    --writeLogs ${LOGS} \
+    --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
+
   # else
-    # get label and set params based on low/med/high/NA reqs
-  if [ $stepsWithoutReqs \> 0 ];
-  then
-    echo "some steps dont have resReqs"
-
-    # WORKFLOW_TABLE="/Users/scrowley/Downloads/global_cwls_all_20241008.csv"
-
-    LABEL=$(jq -r '.label' $WORKFLOW)
-    echo "label: ${LABEL}"
-    # LABEL_LINE=$(sed -n '/$LABEL/p' $WORKFLOW)
-    # LABEL_LINE=$(grep -n "${LABEL}" $WORKFLOW)
-    LABEL_LINE=$(grep -n "$LABEL" $WORKFLOW_TABLE)
-    # awk -v line='0 8 * * * Me echo "start working please"' '$0 == line {print "this is the line number", NR, "from", FILENAME}' a
-    echo "label line: $LABEL_LINE"
-
-    ## comma separate and get last entry
-    commaSepLine=()
-    tmpIFS=$IFS
-    IFS=$IFS,
-    for f in $LABEL_LINE; do commaSepLine+=($f); done
-    IFS=$tmpIFS
-    # get last entry
-    JOB_PRIO=${commaSepLine[${#commaSepLine[@]} - 1]} #${commaSepLine[-1]}
-    # strip other chars
-    JOB_PRIO=$(echo $JOB_PRIO | sed -e 's/\r//g')
-
-    case "$JOB_PRIO" in
-      "high")
-        MEMORY=122070 # 128Gb  #61035 64Gb
-        CPU=12
-        ;;
-      "med")
-        MEMORY=30517 # 32Gb
-        CPU=4
-        ;;
-      "low")
-        MEMORY=3814 # 2Gb
-        CPU=1
-        ;;
-      *)
-        MEMORY=30517  # 32Gb
-        CPU=4
-        ;;
-    esac
-
-    echo "MEM: $MEMORY"
-    echo "CPU: $CPU"
-    echo "running toil with assigned cpu/mem"
-    toil-cwl-runner \
-      --logDebug \
-      --stats \
-      --bypass-file-store \
-      --batchSystem slurm \
-      --retryCount 0 \
-      --disableCaching \
-      --defaultMemory ${MEMORY} \
-      --defaultCores ${CPU} \
-      --jobStore "${JOBSTORE}" \
-      --writeLogs ${LOGS} \
-      --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
-
-  else
-      echo "let toil parse"
-      toil-cwl-runner \
-        --logDebug \
-        --stats \
-        --bypass-file-store \
-        --batchSystem slurm \
-        --retryCount 0 \
-        --disableCaching \
-        --jobStore "${JOBSTORE}" \
-        --writeLogs ${LOGS} \
-        --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
-  fi
+  #     echo "let toil parse"
+  #     toil-cwl-runner \
+  #       --logDebug \
+  #       --stats \
+  #       --bypass-file-store \
+  #       --batchSystem slurm \
+  #       --retryCount 0 \
+  #       --disableCaching \
+  #       --jobStore "${JOBSTORE}" \
+  #       --writeLogs ${LOGS} \
+  #       --outdir ${OUTDIR} ${WORKFLOW} ${JOB} > ${OUTDIR}/results_full.json
+  # fi
 
   
   toil stats ${JOBSTORE} > ${OUTDIR}/stats.txt
@@ -237,6 +212,7 @@ runClusterMode(){
   pkill -P $progressPID
 
 }
+
 
 runLsfClusterMode()
 {
