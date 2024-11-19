@@ -46,10 +46,57 @@ list_descendants ()
 cleanup()
 {
   EXIT_CODE=$?
-  echo "Sending workflow execution error"
-  PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"failed\", \"progress\": 0, \"error\": \"failed\", \"statistics\": \"\", \"logs\": \"\"}}"
-  echo $PAYLOAD
-  curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
+  echo "Catching workflow error and getting error msg/report"
+
+  # TMPDIR="/Users/scrowley/Desktop/REPOS/personal_scripts/TMP_TEST_DIR"
+  # OUTDIR="/Users/scrowley/Desktop/REPOS/personal_scripts/TMP_OUT_DIR"
+
+  ERROR_REPORT=$OUTDIR/error_report.txt
+  ERROR_MSG=$OUTDIR/error_msg.txt
+
+  # find all "error_msg.txt" files in TMPDIR
+  # concat to outdir
+  # for i in "$TMPDIR/**/error_msg.txt"; do # Whitespace-safe and recursive
+  #     # process "$i"
+  #     echo "$i"
+  # done
+  # find "$TMPDIR" -name "error_msg.txt" -exec process {} \;
+  # find $TMPDIR -name error_msg.txt -print0 | xargs -0 process
+  find $TMPDIR -name "error_msg.txt" | while read fname; do
+      # echo "$fname"
+      echo $(cat $fname) >> $ERROR_MSG
+      echo "--------------------------" >> $ERROR_MSG
+  done
+
+
+  # find all "error_report.txt" files in TMPDIR
+  # concat to outdir
+  find $TMPDIR -name "error_report.txt" | while read fname; do
+      # echo "$fname"
+      echo $(cat $fname) >> $ERROR_REPORT
+      echo "--------------------------" >> $ERROR_REPORT
+  done
+
+
+
+  # create results.json
+
+  ERROR_RESULTS=$( jq -n \
+                    --arg er "$ERROR_REPORT" \
+                    --arg em "$ERROR_MSG" \
+                    --arg e true \
+                    '{error_report: $er, error_msg: $em, scidap_error: $e}' )
+  echo "$ERROR_RESULTS" > $OUTDIR/results.json
+
+
+  PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $ERROR_RESULTS}}"
+  # send report
+  # echo "Sending workflow execution error"
+  # PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"failed\", \"progress\": 0, \"error\": \"failed\", \"statistics\": \"\", \"logs\": \"\"}}"
+  # echo $PAYLOAD
+  # curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
+
+
   pkill -P $progressPID
   #kill $(list_descendants $$)
   exit ${EXIT_CODE}
