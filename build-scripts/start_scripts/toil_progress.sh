@@ -1,13 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -e
 
 
 TMP_DIR=${1:-"/mnt/cache"}
 DAG_ID=$2
 RUN_ID=$3
-# ? make total steps 1 or 2 less than actual ?
+# total steps is a couple more than actual so that final step processing doesn't cause progress to sit at 100%
 TOTAL_STEPS=${4:-"1"}
-# TOTAL_STEPS=$(($TOTAL_STEPS - 1))
+TOTAL_STEPS=$(($TOTAL_STEPS + 3))
 
 NJS_CLIENT_PORT=${5:-"3069"}
 
@@ -18,7 +19,7 @@ SEARCH_DIR="${TMP_DIR}/${DAG_ID}_${RUN_ID}/jobstore/stats"
 
 sendProgressReport() {
     progress=$1
-    PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"Sent to Cluster\", \"progress\": $progress, \"error\": \"\", \"statistics\": \"\", \"logs\": \"\"}}"
+    PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"\", \"progress\": $progress, \"error\": \"\", \"statistics\": \"\", \"logs\": \"\"}}"
     # echo "send payload: $PAYLOAD"
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
 }
@@ -28,6 +29,10 @@ delay=$((3 * 60)) # 3 minutes
 timeout=$(( 8 * 60 * 60 )) # 8 hours
 lastProgress=0
 # success=0
+
+# wait a couple seconds for toil to set stuff up with slurm
+sleep 5
+
 while true; do
     {
         # get current number of stpes processed by listing in column and counting columns
