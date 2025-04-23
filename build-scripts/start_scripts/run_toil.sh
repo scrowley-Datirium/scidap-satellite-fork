@@ -24,8 +24,6 @@ SCRIPT_DIR=${16:-"/home/scidap_satellite/satellite/satellite/bin"}
 JOBSTORE="${TMPDIR}/${DAG_ID}_${RUN_ID}/jobstore"
 LOGS="${TMPDIR}/${DAG_ID}_${RUN_ID}/logs"
 
-WORKFLOW_TABLE="$SCRIPT_DIR/workflow_req_table.csv"
-
     
 # # start progress script in background and kill with this
 bash $SCRIPT_DIR/toil_progress.sh $TMPDIR $DAG_ID $RUN_ID $TOTAL_STEPS $NJS_CLIENT_PORT &
@@ -57,21 +55,40 @@ cleanup()
   # find all "error_msg.txt" files in TMPDIR
   # concat to outdir
   find $TMPDIR -name "error_msg.txt" | while read fname; do
-      # echo "$fname"
-      echo $(cat $fname) >> $ERROR_MSG
-      echo "--------------------------" >> $ERROR_MSG
+    # echo "$fname"
+    echo $(cat $fname) >> $ERROR_MSG
+    echo "--------------------------" >> $ERROR_MSG
   done
 
 
   # find all "error_report.txt" files in TMPDIR
   # concat to outdir
   find $TMPDIR -name "error_report.txt" | while read fname; do
-      # echo "$fname"
-      echo $(cat $fname) >> $ERROR_REPORT
-      echo "--------------------------" >> $ERROR_REPORT
+    # echo "$fname"
+    echo $(cat $fname) >> $ERROR_REPORT
+    echo "--------------------------" >> $ERROR_REPORT
   done
 
+  # find all toil errors and include them in msg (add to report for each one found)
+  # the sort is to somewhat order the files by step
+  find $TMPDIR -name "failed*json*.log" | sort | while read fname; do
+    # get step failure name from file name
+    tmp=${fname#*.json.}
+    stepName=${tmp%%.*}  ## greedy match to get only step name
 
+    # if it includes "_toil_" then it is a log about creating that step (from dispatcher)
+    # if it doesn't, its a log from that step actually running (from step itself)
+    if [[ "$fname" == *"_toil_"* ]]; then
+      echo "collected error log from job-dispatcher for step $stepName " >> $ERROR_REPORT
+    else
+      echo "collected error log from step $stepName " >> $ERROR_REPORT
+    fi
+
+
+    # output log into msg
+    cat $fname >> $ERROR_MSG
+    echo "--------------------------" >> $ERROR_MSG
+  done
 
   # create results.json
   ER_FILESIZE=$(du -sb "$ERROR_REPORT" | cut -f1)
@@ -102,10 +119,10 @@ cleanup()
 
   PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $ERROR_RESULTS}}"
 
-  ## if size of both files > 0
-  if [ $EM_FILESIZE -gt 10 ] && [ $ER_FILESIZE -gt 10 ]; then
-    echo "payload for toil human-readable error: $PAYLOAD"
+  ## if size of both files > 10 (was 2)
+  if [ $EM_FILESIZE -gt 10 ] && [ $ER_FILESIZE -gt 10 ]; then 
     echo $PAYLOAD > "${OUTDIR}/payload.json"
+    echo "payload for new error report: $PAYLOAD"
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
   else 
   # else, send error report
@@ -114,8 +131,9 @@ cleanup()
     echo "Sending workflow execution error"
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"state\": \"failed\", \"progress\": 0, \"error\": \"failed\", \"statistics\": \"\", \"logs\": \"\"}}"
     echo $PAYLOAD > "${OUTDIR}/payload.json"
+    # echo $PAYLOAD
     echo "payload for normal error: $PAYLOAD"
-    curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
+    curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json" #-d "${PAYLOAD}"
   fi
   
 
@@ -168,6 +186,7 @@ runSingleMode()
     PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
     echo $PAYLOAD > "${OUTDIR}/payload.json"
     echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+    echo "payload: $PAYLOAD"
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
     echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
@@ -195,46 +214,6 @@ runClusterMode(){
   echo $PAYLOAD
   curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/progress -H "Content-Type: application/json" -d "${PAYLOAD}"
 
-
-  ## TODO: cpu/mem
-
-  # LABEL=$(jq -r '.label' $WORKFLOW)
-  # echo "label: ${LABEL}"
-  # # LABEL_LINE=$(sed -n '/$LABEL/p' $WORKFLOW)
-  # # LABEL_LINE=$(grep -n "${LABEL}" $WORKFLOW)
-  # LABEL_LINE=$(grep -n "$LABEL" $WORKFLOW_TABLE)
-  # # awk -v line='0 8 * * * Me echo "start working please"' '$0 == line {print "this is the line number", NR, "from", FILENAME}' a
-  # echo "label line: $LABEL_LINE"
-
-  # ## comma separate and get last entry
-  # commaSepLine=()
-  # tmpIFS=$IFS
-  # IFS=$IFS,
-  # for f in $LABEL_LINE; do commaSepLine+=($f); done
-  # IFS=$tmpIFS
-  # # get last entry
-  # JOB_PRIO=${commaSepLine[${#commaSepLine[@]} - 1]} #${commaSepLine[-1]}
-  # # strip other chars
-  # JOB_PRIO=$(echo $JOB_PRIO | sed -e 's/\r//g')
-
-  # case "$JOB_PRIO" in
-  #   "high")
-  #     MEMORY=122070 # 128Gb  #61035 64Gb
-  #     CPU=12
-  #     ;;
-  #   "med")
-  #     MEMORY=30517 # 32Gb
-  #     CPU=4
-  #     ;;
-  #   "low")
-  #     MEMORY=3814 # 2Gb
-  #     CPU=1
-  #     ;;
-  #   *)
-  #     MEMORY=30517  # 32Gb
-  #     CPU=4
-  #     ;;
-  # esac
 
   MEMORY=30517  # 32Gb
   CPU=4
@@ -276,12 +255,14 @@ runClusterMode(){
   PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $RESULTS}}"
   echo $PAYLOAD > "${OUTDIR}/payload.json"
   echo "Sending workflow execution results from ${OUTDIR}/payload.json"
+  
+  echo "payload: $PAYLOAD"
   curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
 
   echo "Cleaning temporary directory ${TMPDIR}/${DAG_ID}_${RUN_ID}"
   rm -rf "${TMPDIR}"
   pkill -P $progressPID
-
+  exit 0
 }
 
 

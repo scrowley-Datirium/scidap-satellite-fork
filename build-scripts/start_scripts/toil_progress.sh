@@ -26,7 +26,7 @@ sendProgressReport() {
 
 elapsed=0
 delay=$((3 * 60)) # 3 minutes
-timeout=$(( 8 * 60 * 60 )) # 8 hours
+timeout=$(( 36 * 60 * 60 )) # 36 hours
 lastProgress=0
 # success=0
 
