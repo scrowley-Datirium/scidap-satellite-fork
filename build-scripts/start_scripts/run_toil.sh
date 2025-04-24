@@ -55,18 +55,21 @@ cleanup()
   # find all "error_msg.txt" files in TMPDIR
   # concat to outdir
   find $TMPDIR -name "error_msg.txt" | while read fname; do
-    # echo "$fname"
-    echo $(cat $fname) >> $ERROR_MSG
-    echo "--------------------------" >> $ERROR_MSG
+    # echo $(cat $fname) >> $ERROR_MSG
+    # cat $fname >> $ERROR_MSG
+    echo '<div style="white-space: pre-wrap;">' >> $ERROR_MSG
+    awk '{print $0 "<br>"}' $fname >> $ERROR_MSG
+    echo '</div>' >> $ERROR_MSG
+    echo "-------------------------- <br>" >> $ERROR_MSG
   done
 
 
   # find all "error_report.txt" files in TMPDIR
   # concat to outdir
   find $TMPDIR -name "error_report.txt" | while read fname; do
-    # echo "$fname"
-    echo $(cat $fname) >> $ERROR_REPORT
-    echo "--------------------------" >> $ERROR_REPORT
+    # echo $(cat $fname) >> $ERROR_REPORT
+    cat $fname >> $ERROR_REPORT
+    echo "--------------------------  " >> $ERROR_REPORT
   done
 
   # find all toil errors and include them in msg (add to report for each one found)
@@ -88,7 +91,7 @@ cleanup()
     echo '<div style="white-space: pre-wrap;">' >> $ERROR_MSG
     awk '{print $0 "<br>"}' $fname >> $ERROR_MSG
     echo '</div>' >> $ERROR_MSG
-    echo "--------------------------  " >> $ERROR_MSG
+    echo "-------------------------- <br>" >> $ERROR_MSG
   done
 
   # create results.json
