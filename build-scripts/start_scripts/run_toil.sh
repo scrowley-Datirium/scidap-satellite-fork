@@ -79,15 +79,16 @@ cleanup()
     # if it includes "_toil_" then it is a log about creating that step (from dispatcher)
     # if it doesn't, its a log from that step actually running (from step itself)
     if [[ "$fname" == *"_toil_"* ]]; then
-      echo "collected error log from job-dispatcher for step $stepName " >> $ERROR_REPORT
+      echo "# collected error log from job-dispatcher for step $stepName  " >> $ERROR_MSG
     else
-      echo "collected error log from step $stepName " >> $ERROR_REPORT
+      echo "# collected error log from step $stepName  " >> $ERROR_MSG
     fi
 
-
-    # output log into msg
-    cat $fname >> $ERROR_MSG
-    echo "--------------------------" >> $ERROR_MSG
+    # output log into msg, and format content as test with line breaks (to preserve sizing)
+    echo '<div style="white-space: pre-wrap;">' >> $ERROR_MSG
+    awk '{print $0 "<br>"}' $fname >> $ERROR_MSG
+    echo '</div>' >> $ERROR_MSG
+    echo "--------------------------  " >> $ERROR_MSG
   done
 
   # create results.json
@@ -119,8 +120,8 @@ cleanup()
 
   PAYLOAD="{\"payload\":{\"dag_id\": \"${DAG_ID}\", \"run_id\": \"${RUN_ID}\", \"results\": $ERROR_RESULTS}}"
 
-  ## if size of both files > 10 (was 2)
-  if [ $EM_FILESIZE -gt 10 ] && [ $ER_FILESIZE -gt 10 ]; then 
+  ## if size of EITHER files > 10         (was >2) (was BOTH)
+  if [ $EM_FILESIZE -gt 10 ] || [ $ER_FILESIZE -gt 10 ]; then 
     echo $PAYLOAD > "${OUTDIR}/payload.json"
     echo "payload for new error report: $PAYLOAD"
     curl -X POST http://localhost:${NJS_CLIENT_PORT}/airflow/results -H "Content-Type: application/json" -d @"${OUTDIR}/payload.json"
