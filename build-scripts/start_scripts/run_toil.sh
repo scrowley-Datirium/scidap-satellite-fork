@@ -79,9 +79,9 @@ cleanup()
     # if it includes "_toil_" then it is a log about creating that step (from dispatcher)
     # if it doesn't, its a log from that step actually running (from step itself)
     if [[ "$fname" == *"_toil_"* ]]; then
-      echo "# collected error log from job-dispatcher for step $stepName  " >> $ERROR_MSG
+      echo "<h1>collected error log from job-dispatcher for step $stepName</h1> <br>" >> $ERROR_MSG
     else
-      echo "# collected error log from step $stepName  " >> $ERROR_MSG
+      echo "<h1>collected error log from step $stepName</h1> <br>" >> $ERROR_MSG
     fi
 
     # output log into msg, and format content as test with line breaks (to preserve sizing)
