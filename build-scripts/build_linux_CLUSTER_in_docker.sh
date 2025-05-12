@@ -5,7 +5,7 @@
 
 
 
-CLUSTER_API_VERSION=${1:="0.1.3"}
+CLUSTER_API_VERSION=${1:="0.1.4"}
 NJS_REPO_PATH=${2:-"/Users/scrowley/Desktop/REPOS/scidap-satellite-interactions/scidap-satellite"}
 
 BUILD_CONTAINER=${3:-"ubuntu:18.04"}                          # ubuntu or centos images (centos:7, centos:8, ubuntu:18.04, ubuntu:20.04)
